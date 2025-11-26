@@ -5,6 +5,7 @@ import {
     useRef,
     useState,
     type FC,
+    type ChangeEvent,
 } from "react"
 
 import type { IInput, JsonFormControls } from "@undermuz/react-json-form"
@@ -36,6 +37,9 @@ interface TypeSelectValue {
     value: number
 }
 
+const getSelectSingleValue = (v?: TypeSelectValue | null) =>
+    v?.value !== undefined ? [v?.value] : []
+
 const ControlSelect: FC<IInput & IConnectedProps> = (props) => {
     const { id, name, value, settings = {}, isDisabled = false } = props
 
@@ -65,33 +69,40 @@ const ControlSelect: FC<IInput & IConnectedProps> = (props) => {
 
     const selectValue = useMemo(() => {
         if (!multiple) {
-            if (!isSync) return asyncValue
+            if (!isSync) return getSelectSingleValue(asyncValue)
 
-            return options.find((_i) => _i.value == value)
+            const option = options.find((_i) => _i.value == value)
+
+            return getSelectSingleValue(option)
         }
 
-        if (!isSync) return asyncValues
 
-        const _list: TypeSelectValue[] = isArray(value)
+        if (!isSync) return asyncValues.map((_i) => _i.value)
+
+        const _list: TypeSelectValue[] = _.isArray(value)
             ? (value as TypeSelectValue[])
             : []
 
-        return _list.map((v) => options.find((_i) => _i.value == v))
+        return _list.map((v) => {
+            const option = options.find((_i) => _i.value == v)
+
+            return option?.value
+        })
     }, [isSync, multiple, value, asyncValues, asyncValue, options])
 
     const onChangeSelect = useCallback(
-        (_value: any) => {
-            if (multiple) {
-                const _list: TypeSelectValue[] = isArray(_value)
-                    ? (_value as TypeSelectValue[])
-                    : []
+        (evt: ChangeEvent<HTMLSelectElement>) => {
+            const _value = evt.target.value
 
-                onChange?.(_list.map((_val) => _val.value))
+            if (multiple) {
+                const _v = _value !== "" ? _value.split(",") : []
+
+                onChange?.(_v)
             } else {
-                onChange?.(_value.value)
+                onChange?.(_value)
             }
         },
-        [multiple],
+        [multiple]
     )
 
     const onBlurSelect = useCallback(() => onBlur?.(), [onBlur])
@@ -207,7 +218,7 @@ const ControlSelect: FC<IInput & IConnectedProps> = (props) => {
             {...rest}
             selectionMode={multiple ? "multiple" : "single"}
             name={name}
-            value={selectValue}
+            selectedKeys={selectValue}
             onBlur={onBlurSelect}
             onChange={onChangeSelect}
         >
